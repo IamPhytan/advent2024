@@ -54,7 +54,12 @@ pub fn part_one(input: &str) -> Option<u32> {
 
     let diag_tl_sgrid = to_string_grid(&to_diagonal_grid(&grid));
     let diag_tl = count_occurences(&diag_tl_sgrid);
-    let diag_bl_sgrid = to_string_grid(&&to_diagonal_grid(&vertic_grid));
+    let diag_bl_sgrid = to_string_grid(&to_diagonal_grid(
+        &vertic_grid
+            .iter()
+            .map(|r| r.clone().into_iter().rev().collect::<Vec<char>>())
+            .collect(),
+    ));
     let diag_bl = count_occurences(&diag_bl_sgrid);
 
     println!("{} {}", grid.len(), grid[0].len());
@@ -62,7 +67,36 @@ pub fn part_one(input: &str) -> Option<u32> {
 }
 
 pub fn part_two(input: &str) -> Option<u32> {
-    None
+    let grid: Vec<Vec<char>> = input.lines().map(|line| line.chars().collect()).collect();
+
+    let target = ('M' as u32) + ('S' as u32);
+
+    let mut cnt: u32 = 0;
+
+    let n = grid.len();
+
+    for r in 1..(n - 1) {
+        for c in 1..(n - 1) {
+            if grid[r][c] != 'A' {
+                continue;
+            }
+
+            let tlbr: u32 = vec![grid[r - 1][c - 1], grid[r + 1][c + 1]]
+                .iter()
+                .map(|&n| n as u32)
+                .sum();
+            let trbl: u32 = vec![grid[r - 1][c + 1], grid[r + 1][c - 1]]
+                .iter()
+                .map(|&n| n as u32)
+                .sum();
+
+            if tlbr == target && trbl == target {
+                cnt += 1;
+            }
+        }
+    }
+
+    Some(cnt)
 }
 
 #[cfg(test)]
@@ -78,6 +112,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(9));
     }
 }
