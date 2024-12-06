@@ -1,4 +1,5 @@
 advent_of_code::solution!(5);
+use std::cmp::Ordering;
 
 fn get_middle_page(pages: &Vec<i32>) -> u32 {
     return pages.get((pages.len() - 1) / 2).unwrap().to_owned() as u32;
@@ -17,6 +18,26 @@ fn is_valid_update(update: &Vec<i32>, rules: &Vec<Vec<i32>>) -> bool {
         }
     }
     true
+}
+
+fn rule_order(a: i32, b: i32, rules: &Vec<Vec<i32>>) -> Ordering {
+    for rule in rules.clone() {
+        let rule_tup = (rule[0], rule[1]);
+        if (a, b) == rule_tup {
+            return Ordering::Greater;
+        } else if (b, a) == rule_tup {
+            return Ordering::Less;
+        } else {
+            continue;
+        }
+    }
+    return Ordering::Equal;
+}
+
+fn sort_update(update: &Vec<i32>, rules: &Vec<Vec<i32>>) -> Vec<i32> {
+    let mut sorted_upd = update.clone();
+    sorted_upd.sort_by(|&a, &b| rule_order(a, b, rules));
+    sorted_upd
 }
 
 pub fn part_one(input: &str) -> Option<u32> {
@@ -61,60 +82,12 @@ pub fn part_two(input: &str) -> Option<u32> {
         .map(|l| l.split(",").map(|n| n.parse::<i32>().unwrap()).collect())
         .collect();
 
-    let total = updates
+    let sorted_updates: Vec<_> = updates
         .iter()
-        .filter_map(|update| {
-            let n_elem = update.len();
-            if !rules.iter().all(|r| {
-                let (a, b) = (r[0], r[1]);
-                let pos_a = update.iter().position(|&x| x == a);
-                let pos_b = update.iter().position(|&x| x == b);
-                matches!((pos_a, pos_b), (Some(i), Some(j)) if i<j)
-            }) {
-                let mut graph = vec![Vec::new(); n_elem];
-                for rule in &rules {
-                    if let (Some(i), Some(j)) = (
-                        update.iter().position(|&x| x == rule[0]),
-                        update.iter().position(|&x| x == rule[1]),
-                    ) {
-                        graph[i].push(j);
-                    }
-                }
-
-                let mut seen = vec![false; n_elem];
-                let mut order = Vec::with_capacity(n_elem);
-
-                fn visit(
-                    n: usize,
-                    seen: &mut [bool],
-                    order: &mut Vec<usize>,
-                    graph: &[Vec<usize>],
-                ) {
-                    if seen[n] {
-                        return;
-                    }
-                    seen[n] = true;
-                    for &next in &graph[n] {
-                        visit(next, seen, order, graph);
-                    }
-                    order.push(n);
-                }
-
-                for i in 0..n_elem {
-                    if !seen[i] {
-                        visit(i, &mut seen, &mut order, &graph);
-                    }
-                }
-
-                order.reverse();
-                Some(update[order[order.len() / 2]] as u32)
-            } else {
-                None
-            }
-        })
-        .sum();
-
-    Some(total)
+        .filter(|&u| !is_valid_update(u, &rules))
+        .map(|u| sort_update(u, &rules))
+        .collect();
+    Some(sorted_updates.iter().map(|u| get_middle_page(u)).sum())
 }
 
 #[cfg(test)]
