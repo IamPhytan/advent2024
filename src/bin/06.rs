@@ -1,34 +1,50 @@
 advent_of_code::solution!(6);
 
+use std::fmt;
+use strum::FromRepr;
+
 use array2d::Array2D;
 
-fn turn(guard: char) -> char {
-    match guard {
-        '^' => '>',
-        '>' => 'v',
-        'v' => '<',
-        '<' => '^',
-        _ => todo!(),
+#[derive(FromRepr, Debug, Clone)]
+#[repr(i32)]
+enum Direction {
+    UP,
+    DOWN,
+    LEFT,
+    RIGHT,
+}
+
+impl Direction {
+    fn as_char(&self) -> char {
+        match self {
+            Direction::UP => '^',
+            Direction::DOWN => 'v',
+            Direction::LEFT => '<',
+            Direction::RIGHT => '>',
+        }
     }
 }
 
-fn parse_input(input: &str, direction: char) -> (Array2D<char>, (usize, usize)) {
+impl fmt::Display for Direction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            direction => write!(f, "{}", direction.as_char()),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+struct Coordinates {
+    row: usize,
+    col: usize,
+}
+
+fn parse_input(input: &str, direction: &Direction) -> (Array2D<char>, Coordinates) {
     let lines: Vec<String> = input
         .lines()
         .into_iter()
         .map(|line| line.to_owned())
         .collect();
-
-    let coords: (usize, usize) = *lines
-        .iter()
-        .enumerate()
-        .filter_map(|(i, row)| match row.find(direction) {
-            Some(n) => Some((i, n)),
-            None => None,
-        })
-        .collect::<Vec<_>>()
-        .first()
-        .unwrap();
 
     let maze = Array2D::from_rows(
         &lines
@@ -38,16 +54,57 @@ fn parse_input(input: &str, direction: char) -> (Array2D<char>, (usize, usize)) 
     )
     .unwrap();
 
+    let start: (usize, usize) = *lines
+        .iter()
+        .enumerate()
+        .filter_map(|(i, row)| match row.find(direction.as_char()) {
+            Some(n) => Some((i, n)),
+            None => None,
+        })
+        .collect::<Vec<_>>()
+        .first()
+        .unwrap();
+
+    let coords: Coordinates = Coordinates {
+        row: start.0,
+        col: start.1,
+    };
+
     (maze, coords)
 }
 
+fn turn_guard(mut maze: Array2D<char>, coords: &Coordinates) -> Direction {
+    let guard = maze.get(coords.row, coords.col).unwrap();
+
+    let new_guard = match Direction::from_repr(guard.to_owned() as i32).unwrap() {
+        Direction::UP => Direction::RIGHT,
+        Direction::RIGHT => Direction::DOWN,
+        Direction::DOWN => Direction::LEFT,
+        Direction::LEFT => Direction::UP,
+    };
+
+    maze.set(coords.row, coords.col, new_guard.as_char())
+        .unwrap();
+
+    new_guard
+}
+
+fn is_border(coords: Coordinates, height: &usize, width: &usize) -> bool {
+    let col = coords.col == 0 || coords.col == (width - 1);
+    let row = coords.row == 0 || coords.row == (height - 1);
+    col && row
+}
+
 pub fn part_one(input: &str) -> Option<u32> {
-    let mut direction: char = '^';
-    let (maze, coords) = parse_input(input, direction);
+    let mut guard: Direction = Direction::UP;
+    let (mut maze, mut coords) = parse_input(input, &guard);
 
-    println!("{:?}", coords);
+    let W = maze.num_columns();
+    let H = maze.num_rows();
 
-    direction = turn(direction);
+    // while !is_border(coords, &H, &W) {
+    //     turn_guard(maze, &coords);
+    // }
 
     None
 }
