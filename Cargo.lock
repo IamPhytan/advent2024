@@ -22,6 +22,7 @@ name = "advent_of_code"
 version = "0.11.0"
 dependencies = [
  "anyhow",
+ "array2d",
  "chrono",
  "dhat",
  "grid",
@@ -60,6 +61,12 @@ name = "anyhow"
 version = "1.0.94"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c1fd03a028ef38ba2276dce7e33fcd6369c158a1bca17946c4b1b701891c1ff7"
+
+[[package]]
+name = "array2d"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d8b39cb2c1bf5a7c0dd097aa95ab859cf87dab5a4328900f5388942dc1889f74"
 
 [[package]]
 name = "autocfg"
