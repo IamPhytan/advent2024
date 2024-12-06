@@ -73,20 +73,30 @@ fn parse_input(input: &str, direction: &Direction) -> (Array2D<char>, Coordinate
     (maze, coords)
 }
 
-fn turn_guard(mut maze: Array2D<char>, coords: &Coordinates) -> Direction {
-    let guard = maze.get(coords.row, coords.col).unwrap();
+fn move_guard(
+    maze: Array2D<char>,
+    coords: Coordinates,
+    guard: &Direction,
+) -> (Array2D<char>, Coordinates) {
+    todo!("Implement moving forward");
+    (maze, coords)
+}
 
-    let new_guard = match Direction::from_repr(guard.to_owned() as i32).unwrap() {
+fn turn_guard(mut guard: Direction, maze: &Array2D<char>, coords: &Coordinates) -> Direction {
+    assert!(
+        guard.as_char() == *maze.get(coords.row, coords.col).unwrap(),
+        "Guard is not in the right direction, expected {}",
+        guard.as_char()
+    );
+
+    guard = match guard {
         Direction::UP => Direction::RIGHT,
         Direction::RIGHT => Direction::DOWN,
         Direction::DOWN => Direction::LEFT,
         Direction::LEFT => Direction::UP,
     };
 
-    maze.set(coords.row, coords.col, new_guard.as_char())
-        .unwrap();
-
-    new_guard
+    guard
 }
 
 fn is_border(coords: Coordinates, height: &usize, width: &usize) -> bool {
@@ -102,9 +112,13 @@ pub fn part_one(input: &str) -> Option<u32> {
     let W = maze.num_columns();
     let H = maze.num_rows();
 
-    // while !is_border(coords, &H, &W) {
-    //     turn_guard(maze, &coords);
-    // }
+    while !is_border(coords, &H, &W) {
+        // Move
+        (maze, coords) = move_guard(maze, coords, &guard);
+        // Turn
+        guard = turn_guard(guard, &maze, &coords);
+        maze.set(coords.row, coords.col, guard.as_char()).unwrap();
+    }
 
     None
 }
