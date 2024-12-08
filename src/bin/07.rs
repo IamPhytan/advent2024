@@ -23,22 +23,25 @@ fn parse_input(input: &str) -> Vec<Equation> {
         .collect::<Vec<Equation>>()
 }
 
-fn is_solvable(eq: &Equation) -> bool {
+fn is_solvable(eq: &Equation, has_concat: bool) -> bool {
     let result = eq.result;
     let numbers = eq.numbers.clone();
-    // Sum
-    if numbers.iter().sum::<u64>() == result {
-        return true;
-    }
-    // Product
-    if numbers.iter().copied().reduce(|a, b| a * b).unwrap() == result {
-        println!("Winner winner, chicken dinner");
-        return true;
+
+    eval(result, numbers[0], &numbers[1..], has_concat)
+}
+
+fn eval(result: u64, accum: u64, vals: &[u64], has_concat: bool) -> bool {
+    if vals.is_empty() {
+        return accum == result;
     }
 
-    todo!("Other methods");
+    eval(result, accum + vals[0], &vals[1..], has_concat)
+        || eval(result, accum * vals[0], &vals[1..], has_concat)
+        || (has_concat && eval(result, concat(accum, vals[0]), &vals[1..], true))
+}
 
-    false
+fn concat(a: u64, b: u64) -> u64 {
+    a * 10_u64.pow(b.ilog(10) + 1) + b
 }
 
 pub fn part_one(input: &str) -> Option<u64> {
@@ -47,7 +50,7 @@ pub fn part_one(input: &str) -> Option<u64> {
     let result: u64 = equations
         .iter()
         .filter_map(|equation| {
-            if is_solvable(&equation) {
+            if is_solvable(&equation, false) {
                 Some(equation.result)
             } else {
                 None
@@ -58,8 +61,21 @@ pub fn part_one(input: &str) -> Option<u64> {
     Some(result)
 }
 
-pub fn part_two(input: &str) -> Option<u32> {
-    None
+pub fn part_two(input: &str) -> Option<u64> {
+    let equations = parse_input(input);
+
+    let result: u64 = equations
+        .iter()
+        .filter_map(|equation| {
+            if is_solvable(&equation, true) {
+                Some(equation.result)
+            } else {
+                None
+            }
+        })
+        .sum();
+
+    Some(result)
 }
 
 #[cfg(test)]
@@ -75,6 +91,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(11387));
     }
 }
