@@ -1,7 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     hash::Hash,
-    ops::{Add, Sub},
+    ops::{Add, Mul, Sub},
 };
 
 use array2d::Array2D;
@@ -28,10 +28,10 @@ impl Point {
 }
 
 impl Add<Point> for Point {
-    type Output = Point;
+    type Output = Self;
 
-    fn add(self, rhs: Point) -> Self::Output {
-        Point {
+    fn add(self, rhs: Self) -> Self {
+        Self {
             x: self.x + rhs.x,
             y: self.y + rhs.y,
         }
@@ -39,12 +39,23 @@ impl Add<Point> for Point {
 }
 
 impl Sub<Point> for Point {
-    type Output = Point;
+    type Output = Self;
 
-    fn sub(self, rhs: Point) -> Self::Output {
-        Point {
+    fn sub(self, rhs: Self) -> Self {
+        Self {
             x: self.x - rhs.x,
             y: self.y - rhs.y,
+        }
+    }
+}
+
+impl Mul<isize> for Point {
+    type Output = Self;
+
+    fn mul(self, rhs: isize) -> Self {
+        Self {
+            x: rhs * self.x,
+            y: rhs * self.y,
         }
     }
 }
@@ -199,7 +210,75 @@ pub fn part_one(input: &str) -> Option<u32> {
 }
 
 pub fn part_two(input: &str) -> Option<u32> {
-    None
+    let (map, antennas) = parse_input(input);
+
+    let (height, width) = (map.n_rows, map.n_cols);
+    // let frequencies: Vec<char> = antennas.iter().map(|(&k, _)| k).collect();
+
+    let all_antinodes: Vec<Point> = antennas
+        .clone()
+        .into_iter()
+        .map(|(_, freq_ant)| {
+            freq_ant
+                .to_owned()
+                .iter()
+                .combinations(2)
+                .into_iter()
+                .map(|ant_pair| {
+                    let [&a, &b]: [&Point; 2] = ant_pair.try_into().unwrap();
+                    // let antpair_grid = map.decorate(&antennas, Some(&vec![a, b])).1.unwrap();
+                    // map.show_map(Some(&antpair_grid));
+                    let offset = b - a;
+                    let max_offset = [offset.x, offset.y]
+                        .iter()
+                        .map(|dim| dim.abs())
+                        .max()
+                        .unwrap();
+                    let n = 2 * {
+                        if max_offset == offset.x.abs() {
+                            (width as isize) / max_offset
+                        } else {
+                            (height as isize) / max_offset
+                        }
+                    };
+                    (0..n)
+                        .into_iter()
+                        .map(|i| {
+                            let d = offset * i;
+                            vec![a - d, b + d]
+                        })
+                        .flatten()
+                        .collect::<Vec<Point>>()
+                })
+                .flatten()
+                .collect::<Vec<Point>>()
+        })
+        .flatten()
+        .collect::<Vec<Point>>();
+
+    let antinodes = all_antinodes
+        .into_iter()
+        .filter(|&pt| pt.is_in_map(height, width))
+        .collect::<Vec<Point>>();
+
+    let (antenna_map, opt_antinode_map) = map.decorate(&antennas, Some(&antinodes));
+    let antinode_map = opt_antinode_map.unwrap();
+
+    // map.show_map(None);
+    map.show_map(Some(&antenna_map));
+    map.show_map(Some(&antinode_map));
+
+    // Remove duplicates
+    let unique = antinodes
+        .clone()
+        .into_iter()
+        .collect::<HashSet<Point>>()
+        .into_iter()
+        .collect::<Vec<Point>>();
+
+    println!("{} {}", antinodes.len(), unique.len());
+
+    Some(unique.len() as u32)
 }
 
 #[cfg(test)]
@@ -215,6 +294,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(34));
     }
 }
