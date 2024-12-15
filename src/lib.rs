@@ -1,6 +1,6 @@
 pub mod template;
 
-use std::ops::Add;
+use std::ops::{Add, Mul, Rem};
 
 // Use this file to add helper functions and additional modules.
 pub fn vectranspose<T>(v: Vec<Vec<T>>) -> Vec<Vec<T>>
@@ -22,8 +22,8 @@ where
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Point {
-    x: isize,
-    y: isize,
+    pub x: isize,
+    pub y: isize,
 }
 
 impl Point {
@@ -39,6 +39,28 @@ impl Add<Point> for Point {
         Self {
             x: self.x + rhs.x,
             y: self.y + rhs.y,
+        }
+    }
+}
+
+impl Mul<isize> for Point {
+    type Output = Self;
+
+    fn mul(self, rhs: isize) -> Self {
+        Self {
+            x: rhs * self.x,
+            y: rhs * self.y,
+        }
+    }
+}
+
+impl Rem<Point> for Point {
+    type Output = Self;
+
+    fn rem(self, rhs: Point) -> Self {
+        Self {
+            x: self.x.rem_euclid(rhs.x) % rhs.x,
+            y: self.y.rem_euclid(rhs.y) % rhs.y,
         }
     }
 }
