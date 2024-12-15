@@ -1,4 +1,5 @@
 use array2d::Array2D;
+use ndarray::prelude::*;
 use regex::Regex;
 
 advent_of_code::solution!(14);
@@ -37,12 +38,26 @@ impl Map {
         self.grid.set(y, x, elem + 1).unwrap();
     }
 
-    fn as_quadrants(&self) -> Vec<_> {
+    fn safety_factors(&self) -> Vec<u32> {
         let rows = self.grid.as_rows();
-        let h_half = self.grid.num_rows() / 2;
-        let w_half = self.grid.num_columns() / 2;
-        todo!("Need implementation");
-        vec![0; 5]
+        let (h, w) = (self.grid.num_rows(), self.grid.num_columns());
+        let v_div = h / 2;
+        let h_div = w / 2;
+
+        let arr = Array::from_shape_vec((h, w), rows.iter().flatten().collect()).unwrap();
+
+        let quadrants = [
+            arr.slice(s![..v_div, ..h_div]),
+            arr.slice(s![..v_div, (h_div + 1)..]),
+            arr.slice(s![(v_div + 1).., ..h_div]),
+            arr.slice(s![(v_div + 1).., (h_div + 1)..]),
+        ];
+
+        // Compute safety factors
+        quadrants
+            .iter()
+            .map(|&q| q.flatten().map(|&v| *v).sum())
+            .collect()
     }
 
     fn in_map(&self, pt: Point) -> bool {
@@ -112,9 +127,10 @@ pub fn part_one(input: &str) -> Option<u32> {
     for pos in post_pos {
         map.increment(pos.x as usize, pos.y as usize);
     }
-
     map.show_map();
-    Some(2)
+
+    let safety_factors = map.safety_factors();
+    Some(safety_factors.iter().fold(1, |res, val| res * val))
 }
 
 pub fn part_two(input: &str) -> Option<u32> {
@@ -128,7 +144,7 @@ mod tests {
     #[test]
     fn test_part_one() {
         let result = part_one(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(12));
     }
 
     #[test]
