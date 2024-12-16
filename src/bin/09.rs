@@ -1,200 +1,136 @@
+// Partly inspired by https://github.com/jayo60013/aoc_2024/blob/main/day09/src/main.rs
 advent_of_code::solution!(9);
 
-use std::collections::HashMap;
-
-use indicatif::ProgressBar;
-use itertools::Itertools;
-use rayon::prelude::*;
+// use indicatif::ProgressBar;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct Block {
-    val: isize,
-    len: usize,
+    id: Option<u32>,
     start: usize,
+    end: usize,
 }
 
 impl Block {
-    fn new(val: isize, len: usize, start: usize) -> Block {
+    fn new(id: Option<u32>, start: usize, end: usize) -> Block {
         Block {
-            val: val,
-            len: len,
+            id: id,
             start: start,
+            end: end,
         }
     }
 
-    fn to_vec(&self) -> Vec<isize> {
-        vec![self.val; self.len]
+    fn as_vec(&self) -> Vec<Option<u32>> {
+        vec![self.id; self.end + 1 - self.start]
     }
 
-    fn is_full(&self) -> bool {
-        self.val != -1
+    fn is_file(&self) -> bool {
+        self.id.is_some()
     }
 }
 
+fn checksum(disk_layout: &Vec<Option<u32>>) -> usize {
+    disk_layout
+        .iter()
+        .enumerate()
+        .filter(|(_, v)| v.is_some())
+        .map(|(i, &id)| i * id.unwrap() as usize)
+        .sum()
+}
+
 fn parse_map(input: &str) -> Vec<Block> {
-    let mut i: usize = 0;
+    let mut ptr: usize = 0;
     input
+        .trim()
         .chars()
         .enumerate()
-        .map(|(idx, n)| {
-            let c = match idx % 2 {
+        .map(|(idx, c)| {
+            let file_id = match idx % 2 {
                 // Even
-                0 => (idx / 2) as isize,
+                0 => Some(idx as u32 / 2),
                 // Odd
-                _ => -1_isize,
+                _ => None,
             };
-            let start = i.clone();
-            let len = n.to_digit(10).unwrap() as usize;
-            i += len;
-            Block::new(c, len, start)
+            let start = ptr.clone();
+            let len = c.to_digit(10).unwrap() as usize;
+            ptr += len;
+            Block::new(file_id, start, start + len - 1)
         })
         .collect()
 }
 
-fn is_compacted(disk_layout: &Vec<isize>) -> bool {
-    let blockpos: Vec<usize> = disk_layout
-        .par_iter()
-        .enumerate()
-        .rev()
-        .filter(|(_, &c)| c >= 0)
-        .map(|(i, _)| i)
-        .collect();
-
-    let compacted = blockpos[0] < blockpos.len();
-    // println!("{} {:?}", compacted, blockpos);
-    compacted
-}
-
-fn checksum(disk_layout: &Vec<isize>) -> usize {
-    disk_layout
-        .iter()
-        .enumerate()
-        .filter_map(|(i, &b)| if b < 0 { None } else { Some(i * b as usize) })
-        .sum()
+fn get_disk(disk_map: &Vec<Block>) -> Vec<Option<u32>> {
+    disk_map.iter().map(|b| b.as_vec()).flatten().collect()
 }
 
 pub fn part_one(input: &str) -> Option<usize> {
-    let disk_blocks = parse_map(input);
-    let mut disk_layout = disk_blocks
-        .iter()
-        .flat_map(|b| b.to_vec())
-        .collect::<Vec<isize>>();
+    let disk_map = parse_map(input);
+    let disk = get_disk(&disk_map);
 
-    // println!("{:?}", disk_layout);
+    let mut compacted_disk = disk.clone();
 
-    let bar = ProgressBar::new(disk_layout.len() as u64);
+    // let bar = ProgressBar::new(disk_map.len() as u64);
 
-    while !is_compacted(&disk_layout) {
-        let empty_idx = disk_layout
-            .iter()
-            .enumerate()
-            .skip_while(|(_, &c)| c >= 0)
-            .take(1)
-            .map(|(i, _)| i)
-            .next()
-            .unwrap();
-
-        let block_idx = disk_layout
-            .iter()
-            .enumerate()
-            .rev()
-            .skip_while(|(_, &c)| c < 0)
-            .take(1)
-            .map(|(i, _)| i)
-            .next()
-            .unwrap();
-
-        disk_layout[empty_idx] = *disk_layout.get(block_idx).unwrap();
-        disk_layout[block_idx] = -1;
-
-        bar.set_position(empty_idx as u64);
-
-        // println!("{} > {}", empty_idx, block_idx);
-        // println!("{:?}", disk_layout);
-    }
-
-    Some(checksum(&disk_layout))
-}
-
-pub fn part_two(input: &str) -> Option<u32> {
-    let disk_blocks = parse_map(input);
-    let disk_len: usize = disk_blocks.iter().map(|b| b.len).sum();
-    let bar = ProgressBar::new(disk_len as u64);
-
-    let mut start_map: HashMap<usize, Block> = HashMap::new();
-    for block in disk_blocks.clone() {
-        start_map.insert(block.start, block.clone());
-    }
-
-    let mut empties = disk_blocks
-        .iter()
-        .filter(|&b| !b.is_full())
-        .sorted_by_key(|&b| b.start)
-        .collect::<Vec<&Block>>();
-
-    let mut availables = disk_blocks
-        .iter()
-        .filter(|&b| b.is_full())
-        .sorted_by_key(|&b| b.start)
-        .rev()
-        .map(|&b| b)
-        .collect::<Vec<Block>>();
-
-    let mut res: Vec<Block> = vec![];
-    let mut i: usize = 0;
-
-    while !empties.is_empty() {
-        if start_map.contains_key(&i) && start_map[&i].is_full() {
-            let first_block = start_map[&i];
-            i += first_block.len;
-            res.push(first_block);
+    while compacted_disk.contains(&None) {
+        let last = compacted_disk.pop().unwrap();
+        if last.is_none() {
             continue;
         }
 
-        let next_empty = empties[0];
-        println!("{} {} {:?}", empties.len(), i, next_empty);
-
-        while i != next_empty.start {
-            let (i_available, next_available) = availables
-                .iter()
-                .enumerate()
-                .skip_while(|(_, &b)| b.len > next_empty.len)
-                .take(1)
-                .next()
-                .unwrap();
-
-            i += next_available.len;
-            res.push(next_available.clone());
-            availables.remove(i_available);
+        if let Some(first_none) = compacted_disk.iter_mut().find(|x| x.is_none()) {
+            *first_none = last;
         }
 
-        assert!(i == next_empty.start, "Missing full block");
-
-        empties = empties[1..].to_vec();
-
-        // let first_block = start_map
-        //     .iter()
-        //     .filter(|(_, &v)| v.is_full())
-        //     .min_by_key(|(&k, _)| k)
-        //     .map(|(k, v)| v)
-        //     .unwrap();
+        // Progress bar
+        // bar.set_position(
+        //     compacted_disk
+        //         .iter()
+        //         .filter_map(|&v| v)
+        //         .collect::<Vec<u32>>()
+        //         .len() as u64,
+        // );
     }
 
-    return Some(5);
+    println!("{}", compacted_disk.len());
 
-    let mut i: usize = 0;
+    Some(checksum(&compacted_disk))
+}
 
-    let next_empty = disk_blocks
-        .iter()
-        .filter(|&b| (b.val < 0))
-        .min_by_key(|&b| b.start)
-        .unwrap();
-    let last_full = disk_blocks
-        .iter()
-        .filter(|&b| b.val >= 0)
-        .max_by_key(|&b| b.start + b.len)
-        .unwrap();
-    println!("{:?} {:?}", start_map[&0], res);
+pub fn part_two(input: &str) -> Option<usize> {
+    let disk_map = parse_map(input);
+    let disk = get_disk(&disk_map);
+
+    let mut compacted_disk = disk.clone();
+
+    // let bar = ProgressBar::new(
+    //     disk_map
+    //         .iter()
+    //         .filter(|&b| b.is_file())
+    //         .collect::<Vec<&Block>>()
+    //         .len() as u64,
+    // );
+
+    for file in disk_map.iter().filter(|&b| b.is_file()).rev() {
+        // bar.inc(1);
+
+        let right_ptr = file.end;
+        let winsize = file.as_vec().len();
+
+        if let Some(start_idx) = compacted_disk
+            .windows(winsize)
+            .position(|win| win == vec![None; winsize])
+        {
+            if start_idx < right_ptr {
+                for i in start_idx..(start_idx + winsize) {
+                    compacted_disk[i] = file.id;
+                }
+                for i in file.start..=file.end {
+                    compacted_disk[i] = None;
+                }
+            }
+        }
+    }
+
+    Some(checksum(&compacted_disk))
 }
 
 #[cfg(test)]
@@ -210,6 +146,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(2858));
     }
 }
