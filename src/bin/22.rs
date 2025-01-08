@@ -1,8 +1,4 @@
-advent_of_code::solution!(12);
-
-fn parse_input(input: &str) -> Option<&str> {
-    Some(input)
-}
+advent_of_code::solution!(22);
 
 pub fn part_one(input: &str) -> Option<u32> {
     None
@@ -19,7 +15,7 @@ mod tests {
     #[test]
     fn test_part_one() {
         let result = part_one(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, Some(1930));
+        assert_eq!(result, None);
     }
 
     #[test]
